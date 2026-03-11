@@ -1,4 +1,5 @@
-﻿from datetime import timedelta
+﻿import os
+from datetime import timedelta
 from pathlib import Path
 from typing import Optional
 from uuid import uuid4
@@ -24,7 +25,11 @@ class LoginRequest(BaseModel):
 router = APIRouter()
 
 BASE_DIR = Path(__file__).resolve().parents[2]
-AVATAR_DIR = BASE_DIR / 'uploads' / 'avatars'
+if os.getenv('VERCEL'):
+    # Vercel serverless runtime allows writes only under /tmp.
+    AVATAR_DIR = Path('/tmp') / 'ai-doctor' / 'avatars'
+else:
+    AVATAR_DIR = BASE_DIR / 'uploads' / 'avatars'
 AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_EXTS = {'.png', '.jpg', '.jpeg', '.webp'}
 
@@ -142,3 +147,4 @@ def get_avatar(filename: str):
     if not target.exists():
         raise HTTPException(status_code=404, detail='Avatar not found')
     return FileResponse(target)
+
