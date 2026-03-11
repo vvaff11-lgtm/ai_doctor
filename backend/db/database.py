@@ -1,18 +1,22 @@
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
+
 from backend.core.config import settings
 
-# 创建数据库引擎
-engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, pool_pre_ping=True)
-
-# 创建会话工厂
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-# 声明模型基类
 Base = declarative_base()
+engine = None
+SessionLocal = None
+
+if not settings.USE_SUPABASE_REST:
+    engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, pool_pre_ping=True)
+    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_db():
-    """获取数据库会话，用于依赖注入"""
+    if SessionLocal is None:
+        yield None
+        return
+
     db = SessionLocal()
     try:
         yield db

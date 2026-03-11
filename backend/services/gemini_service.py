@@ -1,4 +1,4 @@
-﻿import json
+import json
 import subprocess
 from typing import Any, Dict, List
 
@@ -7,14 +7,20 @@ import httpx
 from backend.core.config import settings
 
 
+def _message_value(msg: Any, field: str, default: Any = '') -> Any:
+    if isinstance(msg, dict):
+        return msg.get(field, default)
+    return getattr(msg, field, default)
+
+
 def _build_history_text(history: List[Any]) -> str:
     if not history:
         return ''
 
     chunks: List[str] = []
     for msg in history[-6:]:
-        role = '用户' if getattr(msg, 'role', '') == 'user' else '医生'
-        content = getattr(msg, 'content', '')
+        role = '用户' if _message_value(msg, 'role', '') == 'user' else '医生'
+        content = _message_value(msg, 'content', '')
         if content:
             chunks.append(f'{role}: {content}')
 

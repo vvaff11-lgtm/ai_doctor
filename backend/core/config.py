@@ -1,4 +1,4 @@
-﻿from pathlib import Path
+from pathlib import Path
 
 from pydantic_settings import BaseSettings
 
@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     MYSQL_HOST: str = 'localhost'
     MYSQL_PORT: str = '3306'
     MYSQL_DB: str = 'ai_doctor_db'
+    USE_SUPABASE_REST: bool = False
+
+    # Preferred for cloud deployment
+    DATABASE_URL: str = ''
+    SUPABASE_DB_URL: str = ''
+
+    # Supabase project config (frontend/public usage)
+    SUPABASE_URL: str = ''
+    SUPABASE_PUBLISHABLE_KEY: str = ''
 
     GEMINI_API_KEY: str = ''
     DIFY_API_KEY: str = ''
@@ -25,6 +34,10 @@ class Settings(BaseSettings):
 
     @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
+        if self.SUPABASE_DB_URL:
+            return self.SUPABASE_DB_URL
+        if self.DATABASE_URL:
+            return self.DATABASE_URL
         return f'mysql+pymysql://{self.MYSQL_USER}:{self.MYSQL_PASSWORD}@{self.MYSQL_HOST}:{self.MYSQL_PORT}/{self.MYSQL_DB}'
 
     class Config:

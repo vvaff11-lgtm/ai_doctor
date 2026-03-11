@@ -1,5 +1,6 @@
-﻿from datetime import timedelta
+from datetime import timedelta
 from pathlib import Path
+from typing import Optional
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -12,6 +13,7 @@ from backend.core import security
 from backend.core.config import settings
 from backend.models.user import User
 from backend.schemas.user import Token, UserCreate, UserResponse, UserUpdate
+from backend.services import supabase_store
 
 
 class LoginRequest(BaseModel):
@@ -27,8 +29,26 @@ AVATAR_DIR.mkdir(parents=True, exist_ok=True)
 ALLOWED_EXTS = {'.png', '.jpg', '.jpeg', '.webp'}
 
 
+def _require_db(db: Optional[Session]) -> Session:
+    if db is None:
+        raise HTTPException(status_code=500, detail='Database session is not available')
+    return db
+
+
 @router.post('/register', response_model=UserResponse)
 def register(user_in: UserCreate, db: Session = Depends(deps.get_db)):
+    if settings.USE_SUPABASE_REST:
+        user = supabase_store.get_user_by_username(user_in.username)
+        if user:
+            raise HTTPException(status_code=400, detail='该手机号已被注册')
+
+        hashed_password = security.get_password_hash(user_in.password)
+        user_data = user_in.model_dump(exclude={'password'})
+        user_data['id'] = str(uuid4())
+        user_data['password_hash'] = hashed_password
+        return supabase_store.create_user(user_data)
+
+    db = _require_db(db)
     user = db.query(User).filter(User.username == user_in.username).first()
     if user:
         raise HTTPException(status_code=400, detail='该手机号已被注册')
@@ -44,7 +64,12 @@ def register(user_in: UserCreate, db: Session = Depends(deps.get_db)):
 
 @router.post('/login', response_model=Token)
 def login(login_in: LoginRequest, db: Session = Depends(deps.get_db)):
-    user = db.query(User).filter(User.username == login_in.username).first()
+    if settings.USE_SUPABASE_REST:
+        user = supabase_store.get_user_by_username(login_in.username)
+    else:
+        db = _require_db(db)
+        user = db.query(User).filter(User.username == login_in.username).first()
+
     if not user or not security.verify_password(login_in.password, user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -58,7 +83,7 @@ def login(login_in: LoginRequest, db: Session = Depends(deps.get_db)):
 
 
 @router.get('/me', response_model=UserResponse)
-def get_me(current_user: User = Depends(deps.get_current_user)):
+def get_me(current_user=Depends(deps.get_current_user)):
     return current_user
 
 
@@ -66,9 +91,14 @@ def get_me(current_user: User = Depends(deps.get_current_user)):
 def update_me(
     payload: UserUpdate,
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user=Depends(deps.get_current_user),
 ):
     updates = payload.model_dump(exclude_unset=True)
+
+    if settings.USE_SUPABASE_REST:
+        return supabase_store.update_user(current_user.id, updates)
+
+    db = _require_db(db)
     for field, value in updates.items():
         setattr(current_user, field, value)
 
@@ -82,7 +112,7 @@ def update_me(
 def upload_avatar(
     file: UploadFile = File(...),
     db: Session = Depends(deps.get_db),
-    current_user: User = Depends(deps.get_current_user),
+    current_user=Depends(deps.get_current_user),
 ):
     ext = Path(file.filename or '').suffix.lower()
     if ext not in ALLOWED_EXTS:
@@ -93,6 +123,11 @@ def upload_avatar(
     dst.write_bytes(file.file.read())
 
     avatar_url = f'/api/auth/avatar/{filename}'
+    if settings.USE_SUPABASE_REST:
+        supabase_store.update_user(current_user.id, {'avatar': avatar_url})
+        return {'avatar': avatar_url}
+
+    db = _require_db(db)
     current_user.avatar = avatar_url
     db.add(current_user)
     db.commit()
