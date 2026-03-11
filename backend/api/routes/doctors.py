@@ -1,4 +1,4 @@
-from typing import List, Optional
+﻿from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
@@ -20,7 +20,7 @@ def _require_db(db: Optional[Session]) -> Session:
 
 @router.get('/', response_model=List[DoctorResponse])
 def get_doctors(db: Session = Depends(deps.get_db), current_user=Depends(deps.get_current_user)):
-    if settings.USE_SUPABASE_REST:
+    if settings.USE_SUPABASE_REST_EFFECTIVE:
         return supabase_store.list_doctors()
 
     db = _require_db(db)
@@ -30,12 +30,12 @@ def get_doctors(db: Session = Depends(deps.get_db), current_user=Depends(deps.ge
 
 @router.get('/{doctor_id}', response_model=DoctorResponse)
 def get_doctor(doctor_id: str, db: Session = Depends(deps.get_db), current_user=Depends(deps.get_current_user)):
-    if settings.USE_SUPABASE_REST:
+    if settings.USE_SUPABASE_REST_EFFECTIVE:
         doctor = supabase_store.get_doctor(doctor_id)
     else:
         db = _require_db(db)
         doctor = db.query(Doctor).filter(Doctor.id == doctor_id).first()
 
     if not doctor:
-        raise HTTPException(status_code=404, detail='医生未找到')
+        raise HTTPException(status_code=404, detail='Doctor not found')
     return doctor

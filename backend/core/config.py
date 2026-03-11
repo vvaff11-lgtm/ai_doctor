@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     DIFY_API_BASE_URL: str = 'https://api.dify.ai/v1'
 
     @property
+    def USE_SUPABASE_REST_EFFECTIVE(self) -> bool:
+        if self.USE_SUPABASE_REST:
+            return True
+
+        has_supabase_rest = bool(self.SUPABASE_URL and self.SUPABASE_PUBLISHABLE_KEY)
+        has_direct_db = bool(self.SUPABASE_DB_URL or self.DATABASE_URL)
+        return has_supabase_rest and not has_direct_db
+
+    @property
     def SQLALCHEMY_DATABASE_URI(self) -> str:
         if self.SUPABASE_DB_URL:
             return self.SUPABASE_DB_URL

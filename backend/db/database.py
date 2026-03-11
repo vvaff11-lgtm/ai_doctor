@@ -7,7 +7,7 @@ Base = declarative_base()
 engine = None
 SessionLocal = None
 
-if not settings.USE_SUPABASE_REST:
+if not settings.USE_SUPABASE_REST_EFFECTIVE:
     engine = create_engine(settings.SQLALCHEMY_DATABASE_URI, pool_pre_ping=True)
     SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 

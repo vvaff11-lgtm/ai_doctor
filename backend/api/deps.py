@@ -28,7 +28,7 @@ def get_current_user(db: Optional[Session] = Depends(get_db), token: str = Depen
     except JWTError:
         raise credentials_exception
 
-    if settings.USE_SUPABASE_REST:
+    if settings.USE_SUPABASE_REST_EFFECTIVE:
         user = get_user_by_id(user_id)
     else:
         if db is None:

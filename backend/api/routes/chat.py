@@ -22,7 +22,7 @@ def _require_db(db: Optional[Session]) -> Session:
 
 @router.get('/sessions', response_model=List[ChatSessionResponse])
 def get_sessions(db: Session = Depends(deps.get_db), current_user=Depends(deps.get_current_user)):
-    if settings.USE_SUPABASE_REST:
+    if settings.USE_SUPABASE_REST_EFFECTIVE:
         return supabase_store.list_sessions_for_user(current_user.id)
 
     db = _require_db(db)
@@ -37,7 +37,7 @@ def get_sessions(db: Session = Depends(deps.get_db), current_user=Depends(deps.g
 
 @router.delete('/sessions')
 def clear_sessions(db: Session = Depends(deps.get_db), current_user=Depends(deps.get_current_user)):
-    if settings.USE_SUPABASE_REST:
+    if settings.USE_SUPABASE_REST_EFFECTIVE:
         deleted = supabase_store.clear_sessions_for_user(current_user.id)
         return {'deleted': deleted}
 
@@ -52,7 +52,7 @@ def clear_sessions(db: Session = Depends(deps.get_db), current_user=Depends(deps
 
 @router.get('/sessions/{doctor_id}', response_model=List[MessageResponse])
 def get_session_messages(doctor_id: str, db: Session = Depends(deps.get_db), current_user=Depends(deps.get_current_user)):
-    if settings.USE_SUPABASE_REST:
+    if settings.USE_SUPABASE_REST_EFFECTIVE:
         session = supabase_store.get_session(current_user.id, doctor_id)
         if not session:
             return []
@@ -74,7 +74,7 @@ def get_session_messages(doctor_id: str, db: Session = Depends(deps.get_db), cur
 
 @router.post('/send', response_model=MessageResponse)
 def send_message(msg_in: MessageCreate, db: Session = Depends(deps.get_db), current_user=Depends(deps.get_current_user)):
-    if settings.USE_SUPABASE_REST:
+    if settings.USE_SUPABASE_REST_EFFECTIVE:
         doctor = supabase_store.get_doctor(msg_in.doctor_id)
         if not doctor:
             raise HTTPException(status_code=404, detail='Doctor not found')
